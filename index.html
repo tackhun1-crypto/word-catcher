@@ -91,6 +91,12 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
 .record-list{text-align:left;font-size:14px;max-height:7em;overflow:auto;margin:8px 0}
 #records summary{cursor:pointer;font-weight:800;color:var(--ink)}
 #recordBest,#resultBest{margin:6px 0;font-size:14px}
+#intro .panel{padding:clamp(12px,5vw,24px)}
+#intro .panel>p{margin:0}
+#intro .modes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:16px 0 14px}
+#intro .mode{margin:0;min-width:0;min-height:44px;padding:6px 2px;font-size:clamp(12px,4vw,16px)}
+#introStart{width:100%;margin:0}
+#intro #records{margin-top:14px}
 </style>
 </head>
 <body>
@@ -122,16 +128,14 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
   </main>
   <div class="overlay" id="intro">
     <div class="panel">
-      <div class="big">☁️⭐🐻🐰</div>
-      <h2>워드 캐처</h2>
       <p>게임 모드를 선택하고<br>목소리로 단어를 맞혀 보세요!</p>
       <div class="modes" aria-label="게임 모드">
-      <button class="mode active" data-mode="ko">가나다</button>
-      <button class="mode" data-mode="en">ABC 영어</button>
+      <button class="mode active" data-mode="ko">한글</button>
+      <button class="mode" data-mode="en">영어</button>
       <button class="mode" data-mode="animal">동물 친구</button>
     </div>
-      <details id="records"><summary>기록 보기</summary><p id="recordBest"></p><ol id="recordList" class="record-list"></ol></details>
       <button id="introStart">선택한 모드로 시작!</button>
+      <details id="records"><summary>기록 보기</summary><p id="recordBest"></p><ol id="recordList" class="record-list"></ol></details>
     </div>
   </div>
   <div class="overlay hidden" id="result">
