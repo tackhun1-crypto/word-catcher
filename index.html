@@ -104,6 +104,24 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
 .shard{position:absolute;left:50%;top:var(--celebration-y);width:18px;height:13px;background:#ffeab1;border:2px solid #fff;clip-path:polygon(10% 10%,95% 0,72% 100%,0 75%);animation:scatter .28s ease-out both}
 @media(max-height:450px){.target .emoji{font-size:36px}.target .word{font-size:26px}}
 @media(prefers-reduced-motion:reduce){.shard{animation:none;display:none}}
+
+/* A warm card palette over a quiet sky keeps the prompt in focus. */
+#game{background:linear-gradient(160deg,#d3ecff,#eaf8ff 58%,#f1faf4)}
+.brand{color:#243e62;text-shadow:none;letter-spacing:-.04em}
+.stat{background:#f8fcff;border:1px solid #d5e6f2;box-shadow:0 3px 0 #bfd5e4}
+.stat small{color:#4e6580}
+.playfield{background:radial-gradient(ellipse at 50% 0%,#f2fcff,transparent 75%),linear-gradient(#a7dcfa,#dff5ff);box-shadow:0 8px 0 #bedfeb;border:3px solid #fff}
+.target{background:linear-gradient(155deg,#fffefa,#fff1cc);border-color:#fff;box-shadow:0 7px 0 #e2ba68,0 13px 25px #3d648d33}
+.target .word{color:#253b59}
+.overlay{background:#233d5c80}
+.panel{background:#fffdf7;border-color:#fff;box-shadow:0 10px 0 #263e6240,0 20px 40px #18365333}
+#intro .panel>p{color:#374e6c;font-size:clamp(16px,4.6vw,21px);letter-spacing:-.035em}
+#intro .mode{background:#edf5ff;color:#314f74;border-color:#d8e7f8;box-shadow:none}
+#intro .mode.active{background:#ffebad;color:#624600;border-color:#eac462}
+#introStart,.mic{background:#244e91;color:#fff;box-shadow:0 4px 0 #173762}
+.mic.listening{background:#0f6e5b;box-shadow:0 4px 0 #094f40;animation:none}
+.secondary{color:#24466e}
+.recognized{background:#f8fcff;color:#304e71;font-size:clamp(14px,3.8vw,21px)}
 </style>
 </head>
 <body>
@@ -176,6 +194,7 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
  }
  let mode="ko", score=0, combo=0, bestCombo=0, time=60, running=false, timer=null, current=null;
  let recognition=null, micEnabled=false, retry=null, round=0, transition=null;
+ let firstQuestion=false, speechHold=null, heldRound=null;
  function choose(){
    round++;
    const list=bank[mode];
@@ -196,6 +215,7 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
    target.style.animation="none";
    void target.offsetWidth;
    target.style.animation="fall 8s linear forwards";
+   target.style.animationPlayState=firstQuestion?"paused":"running";
  }
  function update(){$("score").textContent=score;$("combo").textContent=combo;$("time").textContent=time;}
  function startGame(){
@@ -204,11 +224,13 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
    cancelTransition();
    score=0;combo=0;bestCombo=0;time=60;current=null;round=0;running=true;
    update();
-   voiceStatus("");
+   firstQuestion=true;
+   heldRound=null;
+   voiceStatus("마이크를 켜고 첫 문제를 말해 보세요.");
    $("intro").classList.add("hidden");
    $("result").classList.add("hidden");
    choose();
-   timer=setInterval(()=>{time--;update();if(time<=0)endGame();},1000);
+
  }
  const recordKey="word-catcher-records-v1";
  const dateFormat=new Intl.DateTimeFormat("ko-KR",{dateStyle:"short",timeStyle:"short"});
@@ -320,6 +342,7 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
  }
  function cancelTransition(){
    $("celebration").hidden=true;
+   clearTimeout(speechHold);
    if(transition)transition.cancel();
    $("target").style.animationPlayState="";
    transition=null;
@@ -338,6 +361,10 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
    update();
    const recognized=normalize(spoken)==="*"?"별":spoken;
    voiceStatus(`${recognized} · 정답! +${gained}점`);
+   if(firstQuestion){
+     firstQuestion=false;
+     timer=setInterval(()=>{time--;update();if(time<=0)endGame();},1000);
+   }
    const target=$("target");
    target.style.animationPlayState="paused";
    celebrate(target,gained);
@@ -390,7 +417,12 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
    button.setAttribute("aria-pressed",String(enabled));
    button.textContent=enabled?"🎤 음성인식 끄기":"🎤 음성인식 켜기";
  }
+ function releaseSpeechHold(){
+   clearTimeout(speechHold);
+   if(!firstQuestion&&!transition)$("target").style.animationPlayState="running";
+ }
  function stopListening(){
+   releaseSpeechHold();
    clearTimeout(retry);
    const old=recognition;
    recognition=null;
@@ -414,7 +446,21 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
      session.maxAlternatives=5;
      let spokenRound=null;
      let submitted=false;
-     session.onspeechstart=()=>{spokenRound=round;};
+     session.onstart=()=>{
+       if(recognition!==session||transition)return;
+       if(firstQuestion){
+         voiceStatus(`듣고 있어요. ‘${$("word").textContent}’라고 말해 보세요!`);
+       }else if(!$("recognizedText").textContent.includes("정답!")){
+         voiceStatus("듣고 있어요.");
+       }
+     };
+     session.onspeechstart=()=>{
+       spokenRound=round;
+       if(recognition!==session||firstQuestion||transition||heldRound===round)return;
+       heldRound=round;
+       $("target").style.animationPlayState="paused";
+       speechHold=setTimeout(releaseSpeechHold,1600);
+     };
      session.onresult=event=>{
        if(recognition!==session||submitted||transition)return;
        spokenRound??=round;
@@ -425,6 +471,7 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
          if(!choices.length)continue;
          if(result.isFinal){
            submitted=true;
+           releaseSpeechHold();
            submit(choices.find(isCorrect)||choices[0]);
            break;
          }
@@ -448,6 +495,7 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
      };
      session.onend=()=>{
        if(recognition!==session)return;
+       releaseSpeechHold();
        recognition=null;
        if(running&&micEnabled)retry=setTimeout(listen,transition?420:250);
      };
@@ -467,7 +515,7 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
    }
    prepareSound();
    setMic(true);
-   voiceStatus("화면의 단어를 말해 보세요.");
+   voiceStatus("마이크를 준비하고 있어요.");
    listen();
  }
  document.addEventListener("visibilitychange",()=>{
