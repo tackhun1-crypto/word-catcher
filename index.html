@@ -122,6 +122,11 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
 .mic.listening{background:#0f6e5b;box-shadow:0 4px 0 #094f40;animation:none}
 .secondary{color:#24466e}
 .recognized{background:#f8fcff;color:#304e71;font-size:clamp(14px,3.8vw,21px)}
+.playfield.boss-stage{background:radial-gradient(ellipse at 50% 0%,#f5edff,#c3baf5 70%,#b9d9fa)}
+.boss-banner{position:absolute;z-index:2;top:12px;left:50%;transform:translateX(-50%);width:max-content;max-width:94%;padding:7px 14px;border-radius:18px;background:#fff8e8;color:#523678;text-align:center;font-weight:900;line-height:1.2}
+.boss-banner[hidden]{display:none}
+.boss-banner span{display:block;margin-top:4px}
+.boss-stage .target{top:50%;translate:0 -50%}
 </style>
 </head>
 <body>
@@ -137,6 +142,7 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
   </header>
   <main>
     <section class="playfield" aria-label="단어가 나타나는 게임 화면">
+      <div id="bossBanner" class="boss-banner" hidden><strong id="bossName"></strong><span id="bossHealth" aria-live="polite"></span></div>
       <div class="lane"><div class="target" id="target">
         <span class="emoji" id="emoji">🍎</span>
         <div class="word" id="word">사과</div>
@@ -166,7 +172,7 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
   </div>
   <div class="overlay hidden" id="result">
     <div class="panel">
-      <div class="big">🏆</div><h2>참 잘했어요!</h2>
+      <div class="big">🏆</div><h2 id="resultTitle">참 잘했어요!</h2>
       <p id="resultText">멋진 도전이었어요!</p>
       <p id="resultBest"></p>
       <button id="again">한 번 더!</button>
@@ -195,6 +201,29 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
  let mode="ko", score=0, combo=0, bestCombo=0, time=60, running=false, timer=null, current=null;
  let recognition=null, micEnabled=false, retry=null, round=0, transition=null;
  let firstQuestion=false, speechHold=null, heldRound=null;
+ const bossNames={ko:"👑 구름 대왕",en:"🐲 알파벳 드래곤",animal:"🦁 장난꾸러기 사자",number:"🤖 숫자 로봇"};
+ const bossMaxHealth=5;
+ let bossHealth=null;
+ function showBossHealth(){
+   $("bossHealth").textContent="♥".repeat(bossHealth)+"♡".repeat(bossMaxHealth-bossHealth);
+   $("bossHealth").setAttribute("aria-label",`보스 체력 ${bossHealth}/${bossMaxHealth}`);
+ }
+ function beginBoss(){
+   cancelTransition();
+   bossHealth=bossMaxHealth;
+   $("bossBanner").hidden=false;
+   $("bossBanner").parentElement.classList.add("boss-stage");
+   $("bossName").textContent=`${bossNames[mode]} 등장!`;
+   showBossHealth();
+   choose();
+   voiceStatus("정답을 말해서 보스의 하트를 줄여 보세요!");
+ }
+ function tick(){
+   time--;
+   update();
+   if(time<=0)endGame();
+   else if(time===20)beginBoss();
+ }
  function choose(){
    round++;
    const list=bank[mode];
@@ -214,7 +243,7 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
    const target=$("target");
    target.style.animation="none";
    void target.offsetWidth;
-   target.style.animation="fall 8s linear forwards";
+   target.style.animation=bossHealth===null?"fall 8s linear forwards":"none";
    target.style.animationPlayState=firstQuestion?"paused":"running";
  }
  function update(){$("score").textContent=score;$("combo").textContent=combo;$("time").textContent=time;}
@@ -224,6 +253,9 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
    cancelTransition();
    score=0;combo=0;bestCombo=0;time=60;current=null;round=0;running=true;
    update();
+   bossHealth=null;
+   $("bossBanner").hidden=true;
+   $("bossBanner").parentElement.classList.remove("boss-stage");
    firstQuestion=true;
    heldRound=null;
    voiceStatus("마이크를 켜고 첫 문제를 말해 보세요.");
@@ -269,7 +301,9 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
    clearInterval(timer);
    stopListening();
    cancelTransition();
-   $("resultText").textContent=`최종 점수 ${score}점 · 최고 콤보 ${bestCombo}회! 정말 멋졌어요!`;
+   const bossWon=bossHealth===0;
+   $("resultTitle").textContent=bossWon?"보스 클리어!":"참 잘했어요!";
+   $("resultText").textContent=`최종 점수 ${score}점 · 최고 콤보 ${bestCombo}회!${bossWon?" · 보스 보너스 +500점!":""}`;
    saveRecord();
    $("result").classList.remove("hidden");
  }
@@ -358,12 +392,20 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
    bestCombo=Math.max(bestCombo,combo);
    const gained=100+(combo>=10?100:combo>=5?50:0);
    score+=gained;
+   if(bossHealth!==null){
+     bossHealth--;
+     showBossHealth();
+     if(bossHealth===0){
+       clearInterval(timer);
+       score+=500;
+     }
+   }
    update();
    const recognized=normalize(spoken)==="*"?"별":spoken;
    voiceStatus(`${recognized} · 정답! +${gained}점`);
    if(firstQuestion){
      firstQuestion=false;
-     timer=setInterval(()=>{time--;update();if(time<=0)endGame();},1000);
+     timer=setInterval(tick,1000);
    }
    const target=$("target");
    target.style.animationPlayState="paused";
@@ -376,7 +418,8 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
      $("celebration").hidden=true;
      transition=null;
      target.style.animationPlayState="";
-     if(running)choose();
+     if(bossHealth===0)endGame();
+     else if(running)choose();
    };
  }
  $("target").addEventListener("animationend",event=>{
@@ -456,7 +499,7 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
      };
      session.onspeechstart=()=>{
        spokenRound=round;
-       if(recognition!==session||firstQuestion||transition||heldRound===round)return;
+       if(recognition!==session||firstQuestion||bossHealth!==null||transition||heldRound===round)return;
        heldRound=round;
        $("target").style.animationPlayState="paused";
        speechHold=setTimeout(releaseSpeechHold,1600);
