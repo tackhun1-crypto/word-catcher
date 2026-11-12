@@ -93,10 +93,11 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
 #recordBest,#resultBest{margin:6px 0;font-size:14px}
 #intro .panel{padding:clamp(12px,5vw,24px)}
 #intro .panel>p{margin:0}
-#intro .modes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:16px 0 14px}
+#intro .modes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:16px 0 14px}
 #intro .mode{margin:0;min-width:0;min-height:44px;padding:6px 2px;font-size:clamp(12px,4vw,16px)}
 #introStart{width:100%;margin:0}
 #intro #records{margin-top:14px}
+#emoji:empty{display:none}
 </style>
 </head>
 <body>
@@ -133,6 +134,7 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
       <button class="mode active" data-mode="ko">한글</button>
       <button class="mode" data-mode="en">영어</button>
       <button class="mode" data-mode="animal">동물 친구</button>
+      <button class="mode" data-mode="number">숫자</button>
     </div>
       <button id="introStart">선택한 모드로 시작!</button>
       <details id="records"><summary>기록 보기</summary><p id="recordBest"></p><ol id="recordList" class="record-list"></ol></details>
@@ -155,12 +157,31 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
   animal:[["곰","🐻"],["토끼","🐰"],["고양이","🐱"],["강아지","🐶"],["코끼리","🐘"],["사자","🦁"],["원숭이","🐵"],["오리","🦆"],["기린","🦒"],["판다","🐼"]]
  };
  const $=id=>document.getElementById(id);
+ const numberDigits=["영","일","이","삼","사","오","육","칠","팔","구"];
+ bank.number=Array.from({length:1000},(_,number)=>[String(number),""]);
+ function readNumber(number){
+   if(number<10)return numberDigits[number];
+   const hundreds=Math.floor(number/100);
+   const tens=Math.floor(number/10)%10;
+   const ones=number%10;
+   return (hundreds?(hundreds===1?"":numberDigits[hundreds])+"백":"")
+     +(tens?(tens===1?"":numberDigits[tens])+"십":"")
+     +(ones?numberDigits[ones]:"");
+ }
  let mode="ko", score=0, combo=0, bestCombo=0, time=60, running=false, timer=null, current=null;
  let recognition=null, micEnabled=false, retry=null, round=0, transition=null;
  function choose(){
    round++;
    const list=bank[mode];
-   const pool=list.map((_,i)=>i).filter(i=>i!==current);
+   let pool;
+   if(mode==="number"){
+     // Questions 1–2 use one digit, 3–5 use two, then use three.
+     const [min,max]=round<=2?[0,9]:round<=5?[10,99]:[100,999];
+     pool=Array.from({length:max-min+1},(_,i)=>min+i);
+   }else{
+     pool=list.map((_,i)=>i);
+   }
+   pool=pool.filter(i=>i!==current);
    current=pool[Math.floor(Math.random()*pool.length)];
    const [word,emoji]=list[current];
    $("word").textContent=word;
@@ -175,7 +196,7 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
    clearInterval(timer);
    stopListening();
    cancelTransition();
-   score=0;combo=0;bestCombo=0;time=60;current=null;running=true;
+   score=0;combo=0;bestCombo=0;time=60;current=null;round=0;running=true;
    update();
    voiceStatus("");
    $("intro").classList.add("hidden");
@@ -226,6 +247,7 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
  }
  function normalize(s){return (s||"").toLocaleLowerCase().replace(/[\s.,!?~'’"]/g,"").replace(/(요|이에요|예요|입니다)$/,"");}
  function isCorrect(spoken){const answer=bank[mode][current][0];const a=normalize(answer),b=normalize(spoken);if(a===b||(a==="별"&&b==="*"))return true;
+   if(mode==="number")return b===readNumber(current)||(current===0&&b==="공");
    // 음성인식에서 붙는 짧은 종결어미/군더더기를 일부 허용하되, 다른 단어를 무조건 정답 처리하지 않음
    if(mode!=="en" && b.startsWith(a) && b.length-a.length<=2)return true;
    return false;
