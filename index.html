@@ -188,6 +188,38 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
    if(mode!=="en" && b.startsWith(a) && b.length-a.length<=2)return true;
    return false;
  }
+ let soundContext=null;
+ function prepareSound(){
+   const Audio=window.AudioContext||window.webkitAudioContext;
+   if(!Audio)return;
+   try{
+     soundContext??=new Audio();
+     if(soundContext.state==="suspended")soundContext.resume().catch(()=>{});
+   }catch{
+     // A browser audio restriction should not interrupt voice play.
+   }
+ }
+ function playCorrectSound(){
+   if(soundContext?.state!=="running")return;
+   try{
+     const now=soundContext.currentTime;
+     const tone=soundContext.createOscillator();
+     const volume=soundContext.createGain();
+     tone.type="sine";
+     tone.frequency.setValueAtTime(660,now);
+     tone.frequency.setValueAtTime(880,now+.065);
+     volume.gain.setValueAtTime(.001,now);
+     volume.gain.exponentialRampToValueAtTime(.12,now+.015);
+     volume.gain.exponentialRampToValueAtTime(.001,now+.18);
+     tone.connect(volume);
+     volume.connect(soundContext.destination);
+     tone.onended=()=>{tone.disconnect();volume.disconnect();};
+     tone.start(now);
+     tone.stop(now+.19);
+   }catch{
+     // Keep the visual feedback and scoring available if sound fails.
+   }
+ }
  function celebrate(target,gained){
    const layer=$("celebration");
    const field=layer.parentElement.getBoundingClientRect();
@@ -238,6 +270,7 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
    const target=$("target");
    target.style.animationPlayState="paused";
    celebrate(target,gained);
+   playCorrectSound();
    const reducedMotion=matchMedia("(prefers-reduced-motion: reduce)").matches;
    const frames=reducedMotion?[{opacity:1},{opacity:1}]:[{scale:1,opacity:1},{scale:1.2,opacity:1},{scale:.3,opacity:0}];
    transition=target.animate(frames,{duration:380,easing:"ease-out"});
@@ -341,6 +374,7 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
      voiceStatus("마이크가 꺼졌어요.");
      return;
    }
+   prepareSound();
    setMic(true);
    voiceStatus("화면의 단어를 말해 보세요.");
    listen();
