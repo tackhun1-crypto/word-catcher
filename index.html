@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#83d9f5">
+<title>워드 캐처 - 하늘 단어 잡기</title>
+<style>
+:root{--ink:#24415c;--blue:#56b9e8;--pink:#ff8eae;--yellow:#ffd76c;--green:#72d6a1}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body,#game{overscroll-behavior:none}
+body{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+button,.mode,.mic,.secondary,.panel button{ -webkit-user-select:none;user-select:none; -webkit-touch-callout:none; touch-action:manipulation }
+input{ -webkit-user-select:text;user-select:text; -webkit-touch-callout:default; touch-action:auto }
+body{margin:0;font-family:system-ui,-apple-system,"Noto Sans KR",sans-serif;color:var(--ink);background:#b8ecff;min-height:100vh;overflow:hidden}
+button{font:inherit;border:0;cursor:pointer;touch-action:manipulation}
+#game{position:relative;min-height:100vh;overflow:hidden;background:linear-gradient(180deg,#79d7f5 0%,#bceeff 55%,#e9faff 100%)}
+.sun{position:absolute;right:8%;top:7%;width:76px;height:76px;border-radius:50%;background:#ffe98b;box-shadow:0 0 0 14px #ffe98b44,0 0 45px #fff4a5;z-index:0}
+.cloud{position:absolute;color:#fff;font-size:clamp(48px,9vw,100px);opacity:.8;filter:drop-shadow(0 8px 4px #65b8d533);animation:drift 18s linear infinite;z-index:0}
+.c1{top:14%;left:-4%}.c2{top:38%;right:-6%;animation-duration:23s}.c3{top:65%;left:8%;font-size:58px;animation-duration:28s}
+@keyframes drift{0%{transform:translateX(-10px)}50%{transform:translateX(45px)}100%{transform:translateX(-10px)}}
+.top{position:relative;z-index:2;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:14px clamp(12px,3vw,28px)}
+.brand{font-weight:1000;font-size:clamp(19px,3vw,27px);letter-spacing:-1px;color:#fff;text-shadow:0 3px 0 #4eacd0}
+.stats{display:flex;gap:8px}
+.stat{background:#ffffffd9;border:2px solid #fff;border-radius:16px;padding:7px 13px;text-align:center;min-width:72px;box-shadow:0 4px 0 #5bb8d733}
+.stat small{display:block;font-size:11px;font-weight:800;color:#7094a9}.stat b{font-size:19px}
+main{position:relative;z-index:1;max-width:900px;margin:auto;padding:0 16px 22px;display:flex;flex-direction:column;align-items:center}
+h1{font-size:clamp(24px,4vw,38px);margin:6px 0 2px;text-align:center;color:#fff;text-shadow:0 3px 0 #59b5d4}
+.sub{margin:0 0 12px;color:#367e9e;font-weight:750;text-align:center}
+.modes{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:16px 0 10px}
+.mode{background:#eaf8ff;color:#38718c;border:2px solid #d7f2ff;border-radius:18px;padding:11px 14px;font-weight:900;box-shadow:0 3px 0 #62b9d333;min-width:92px}
+.mode.active{background:#fff0a8;border-color:#fff6cc;color:#805c13;transform:translateY(-2px)}
+.mascots{display:flex;justify-content:center;align-items:end;gap:clamp(30px,12vw,100px);height:104px;margin:0 0 3px;pointer-events:none}.buddy{width:clamp(74px,13vw,108px);height:100%;display:flex;align-items:end;filter:drop-shadow(0 7px 4px #397e9a33);animation:buddyBob 2s ease-in-out infinite}.buddy svg{width:100%;height:100%;overflow:visible}.rabbit-buddy{animation-delay:.4s}@keyframes buddyBob{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-8px) rotate(3deg)}}.playfield{position:relative;width:min(92vw,690px);height:clamp(250px,44vh,390px);border:4px solid #ffffffed;border-radius:30px;background:radial-gradient(ellipse at 50% 5%,#ffffff99,transparent 52%),linear-gradient(180deg,#8fe0fb 0%,#c9f1ff 72%,#e7faff 100%);box-shadow:inset 0 0 0 2px #74c9e566,0 12px 0 #56b6d333,0 18px 30px #3c9fc022;overflow:hidden}
+.target{position:absolute;left:50%;top:12%;transform:translateX(-50%);min-width:170px;max-width:85%;padding:13px 24px 16px;background:linear-gradient(145deg,#fff,#fff7dc);border:4px solid #fff;border-radius:28px;box-shadow:0 9px 0 #e8b95a,0 14px 24px #4a9cb544,inset 0 3px 0 #ffffff;text-align:center;animation:fall 8s linear forwards}
+.target .emoji{font-size:clamp(45px,8vw,68px);line-height:1.1;display:block}
+.target .word{font-size:clamp(25px,5vw,38px);font-weight:1000;color:#345d79;white-space:nowrap}
+.target .hint{font-size:12px;font-weight:800;color:#91a8b7;margin-top:3px}
+@keyframes float{0%,100%{margin-top:0}50%{margin-top:9px}}\n@keyframes fall{from{top:7%}to{top:calc(100% - 155px)}}
+#targetTrack{position:absolute;bottom:14px;left:8%;right:8%;height:9px;border-radius:99px;background:#ffffff8a}
+#targetTrack:after{content:"";display:block;width:100%;height:100%;border-radius:99px;background:#75d9a8}
+.ground{position:absolute;bottom:-34px;left:-5%;width:110%;height:62px;background:linear-gradient(180deg,#a8edb1,#71d596);border-radius:50% 50% 0 0;box-shadow:0 -5px 0 #d7ffd8aa}
+.controls{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;margin:17px 0 8px}
+.mic{background:linear-gradient(180deg,#ff9eb7,#ff7298);color:#fff;border:4px solid #fff;border-radius:999px;padding:14px 26px;font-size:19px;font-weight:1000;box-shadow:0 6px 0 #d85d83;min-width:190px}
+.mic:active{transform:translateY(4px);box-shadow:0 2px 0 #d85d83}
+.mic.listening{background:linear-gradient(180deg,#ffcf68,#ffad43);animation:pulse 1s infinite}
+@keyframes pulse{50%{transform:scale(1.04)}}
+.secondary{background:#ffffffd9;color:#47748d;border:2px solid #fff;border-radius:16px;padding:12px 16px;font-weight:900;box-shadow:0 4px 0 #64b7d333}
+.feedback{min-height:29px;font-weight:950;font-size:18px;text-align:center;color:#277da0}
+.testrow{display:flex;gap:6px;justify-content:center;align-items:center;width:min(92vw,420px);margin-top:5px}
+.testrow input{min-width:0;flex:1;border:2px solid #fff;border-radius:14px;padding:11px 13px;font-size:16px;background:#ffffffd9;color:var(--ink)}
+.testrow button{background:#fff;border-radius:14px;padding:11px 14px;font-weight:900;color:#47748d}
+.note{font-size:12px;color:#356f8a;text-align:center;margin:7px 0 0;line-height:1.45}.note.error{color:#b34d62;font-weight:900}
+.overlay{position:absolute;inset:0;background:#28617b77;display:flex;align-items:center;justify-content:center;padding:18px;z-index:5}
+.panel{width:min(92%,420px);background:#fffdf3;border:5px solid #fff;border-radius:30px;padding:25px;text-align:center;box-shadow:0 12px 0 #4b9ab7}
+.panel h2{font-size:29px;margin:0 0 8px;color:#397c9a}.panel p{line-height:1.55;color:#648296;font-weight:700}
+.panel .big{font-size:56px}.panel .modes{margin:18px 0 12px}.panel p{margin-bottom:10px}.panel button{margin-top:8px;background:#ff91ae;color:white;border-radius:18px;padding:13px 28px;font-size:18px;font-weight:1000;box-shadow:0 5px 0 #d86c8d}
+.hidden{display:none!important}
+@media(max-height:650px){.mascots{height:62px;margin-bottom:0}.buddy{width:62px}.top{padding-top:7px;padding-bottom:4px}h1{margin-top:0}.sub{margin-bottom:5px}.modes{margin:2px 0 7px}.playfield{height:42vh;min-height:210px}.controls{margin:10px 0 4px}.note{margin-top:3px}}
+</style>
+</head>
+<body>
+<div id="game">
+  <div class="sun"></div><div class="cloud c1">☁️</div><div class="cloud c2">☁️</div><div class="cloud c3">☁️</div>
+  <header class="top">
+    <div class="brand">☁️ WORD CATCHER</div>
+    <div class="stats">
+      <div class="stat"><small>점수</small><b id="score">0</b></div>
+      <div class="stat"><small>콤보</small><b id="combo">0</b></div>
+      <div class="stat"><small>남은 시간</small><b id="time">60</b></div>
+    </div>
+  </header>
+  <main>
+    <section class="playfield" aria-label="단어가 나타나는 게임 화면">
+      <div class="target" id="target">
+        <span class="emoji" id="emoji">🍎</span>
+        <div class="word" id="word">사과</div>
+        <div class="hint" id="hint">정답을 말해 보세요!</div>
+      </div>
+      <div id="targetTrack"></div><div class="ground"></div>
+    </section>
+    <div class="controls">
+      <button class="mic" id="mic">🎤 말해서 정답 맞히기</button>
+      <button class="secondary" id="start">모드 변경</button>
+    </div>
+    <div class="feedback" id="feedback" aria-live="polite">게임 시작을 누르면 출발해요!</div>
+    <div class="note" id="voiceStatus" role="status" aria-live="polite">음성인식 상태를 확인하고 있어요.</div>
+    <form class="testrow" id="testForm">
+      <input id="typed" autocomplete="off" placeholder="음성인식이 안 되면 여기에 입력" aria-label="정답 직접 입력">
+      <button type="submit">확인</button>
+    </form>
+    <p class="note">마이크 버튼을 누르고 브라우저의 마이크 사용을 허용해 주세요. 직접 입력은 테스트용이에요.</p>
+  </main>
+  <div class="overlay" id="intro">
+    <div class="panel">
+      <div class="big">☁️⭐🐻🐰</div>
+      <h2>워드 캐처</h2>
+      <p>게임 모드를 선택하고<br>목소리로 단어를 맞혀 보세요!</p>
+      <div class="modes" aria-label="게임 모드">
+      <button class="mode active" data-mode="ko">가나다</button>
+      <button class="mode" data-mode="en">ABC 영어</button>
+      <button class="mode" data-mode="animal">동물 친구</button>
+    </div>
+      <button id="introStart">선택한 모드로 시작!</button>
+    </div>
+  </div>
+  <div class="overlay hidden" id="result">
+    <div class="panel">
+      <div class="big">🏆</div><h2>참 잘했어요!</h2>
+      <p id="resultText">멋진 도전이었어요!</p>
+      <button id="again">한 번 더!</button>
+    </div>
+  </div>
+</div>
+<script>
+(() => {
+ const bank = {
+  ko:[["사과","🍎"],["바나나","🍌"],["포도","🍇"],["자동차","🚗"],["기차","🚂"],["우산","☂️"],["모자","🧢"],["꽃","🌸"],["별","⭐"],["집","🏠"],["공","⚽"],["물고기","🐟"]],
+  en:[["APPLE","🍎"],["BANANA","🍌"],["CAT","🐱"],["DOG","🐶"],["SUN","☀️"],["BOOK","📘"],["BALL","⚽"],["CAR","🚗"],["MILK","🥛"],["STAR","⭐"]],
+  animal:[["곰","🐻"],["토끼","🐰"],["고양이","🐱"],["강아지","🐶"],["코끼리","🐘"],["사자","🦁"],["원숭이","🐵"],["오리","🦆"],["기린","🦒"],["판다","🐼"]]
+ };
+ const $=id=>document.getElementById(id);
+ let mode="ko", score=0, combo=0, time=60, running=false, timer=null, current=null, recognition=null, listening=false, used=[];
+ function choose(){let list=bank[mode], pool=list.map((_,i)=>i).filter(i=>i!==current);if(!pool.length)pool=list.map((_,i)=>i);current=pool[Math.floor(Math.random()*pool.length)];used.push(current);const [w,e]=list[current];$("word").textContent=w;$("emoji").textContent=e;$("hint").textContent=mode==="en"?"영어로 말해 보세요!":"정답을 말해 보세요!";const t=$("target");t.style.animation="none";t.style.opacity=1;void t.offsetWidth;t.style.animation="fall 8s linear forwards";}
+ function update(){$("score").textContent=score;$("combo").textContent=combo;$("time").textContent=time;}
+ function say(text){$("feedback").textContent=text;}
+ function startGame(){clearInterval(timer);stopListening();score=0;combo=0;time=60;running=true;update();$("intro").classList.add("hidden");$("result").classList.add("hidden");$("start").textContent="모드 변경";choose();say("좋아요! 첫 번째 단어를 맞혀 보세요!");timer=setInterval(()=>{if(!running)return;time--;update();if(time<=0)endGame();},1000);}
+ function endGame(){running=false;clearInterval(timer);stopListening();$("resultText").textContent=`최종 점수 ${score}점 · 최고 콤보 ${combo}회! 정말 멋졌어요!`;$("result").classList.remove("hidden");}
+ function normalize(s){return (s||"").toLocaleLowerCase().replace(/[\s.,!?~'’"]/g,"").replace(/(요|이에요|예요|입니다)$/,"");}
+ function isCorrect(spoken){const answer=bank[mode][current][0];const a=normalize(answer),b=normalize(spoken);if(a===b)return true;
+   // 음성인식에서 붙는 짧은 종결어미/군더더기를 일부 허용하되, 다른 단어를 무조건 정답 처리하지 않음
+   if(mode!=="en" && b.startsWith(a) && b.length-a.length<=2)return true;
+   return false;
+ }
+ function submit(spoken){if(!running||!spoken)return;if(isCorrect(spoken)){combo++;let gained=100+(combo>=10?100:combo>=5?50:0);score+=gained;update();say(combo>=10?`🔥 ${combo}콤보! 최고예요! +${gained}점`:combo>=5?`⭐ ${combo}콤보! 멋져요! +${gained}점`:`정답이에요! +${gained}점`);$("target").animate([{transform:"translateX(-50%) scale(1)",opacity:1},{transform:"translateX(-50%) scale(1.35) rotate(8deg)",opacity:.3},{transform:"translateX(-50%) scale(.2)",opacity:0}],{duration:380,easing:"ease-out"}).onfinish=()=>{if(running){$("target").style.opacity=1;choose();}};stopListening();}
+   else{combo=0;update();say("괜찮아요! 다시 한 번 말해 볼까요?");}
+ }
+ $("target").addEventListener("animationend",e=>{if(e.animationName==="fall"&&running){combo=0;update();say("앗, 단어가 내려왔어요! 다음 단어에 도전!");choose();}});
+ function voiceStatus(message,isError=false){const el=$("voiceStatus");el.textContent=message;el.classList.toggle("error",isError);}
+ function resetMic(){listening=false;$ ("mic").classList.remove("listening");$("mic").textContent="🎤 말해서 정답 맞히기";}
+ function stopListening(){if(recognition){try{recognition.abort()}catch(e){}}resetMic();}
+ function startListening(){
+   if(!running){say("먼저 게임을 시작해 주세요!");return;}
+   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+   if(!SR){const msg="이 브라우저는 음성인식을 지원하지 않아요. Android Chrome 최신 버전을 사용해 주세요.";say(msg);voiceStatus(msg,true);return;}
+   if(listening){stopListening();return;}
+   try{
+     recognition=new SR();
+     recognition.lang=mode==="en"?"en-US":"ko-KR";
+     recognition.interimResults=true;
+     recognition.continuous=false;
+     recognition.maxAlternatives=5;
+     let submitted=false;
+     recognition.onstart=()=>{listening=true;$("mic").classList.add("listening");$("mic").textContent="🔴 듣고 있어요...";say(mode==="en"?"영어 단어를 말해 보세요!":"단어를 말해 보세요!");voiceStatus(`마이크가 켜졌어요. ${recognition.lang}로 듣고 있습니다.`);};
+     recognition.onaudiostart=()=>voiceStatus("마이크 입력을 받고 있어요. 화면 가까이에서 말해 주세요.");
+     recognition.onspeechstart=()=>voiceStatus("말소리를 감지했어요. 단어를 확인하고 있어요.");
+     recognition.onresult=e=>{
+       let interim="";
+       for(let i=e.resultIndex;i<e.results.length;i++){
+         const r=e.results[i];
+         if(r.isFinal&&!submitted){
+           submitted=true;
+           const choices=Array.from(r).map(x=>x.transcript.trim()).filter(Boolean);
+           const answer=choices.find(x=>isCorrect(x))||choices[0]||"";
+           if(answer){voiceStatus(`인식 결과: “${answer}”`);submit(answer);}
+         }else if(!r.isFinal){interim+=r[0].transcript;}
+       }
+       if(interim)voiceStatus(`듣는 중: “${interim}”`);
+     };
+     recognition.onnomatch=()=>{say("잘 알아듣지 못했어요. 천천히 한 번 더 말해 주세요.");voiceStatus("소리는 들렸지만 단어를 구분하지 못했어요.",true);};
+     recognition.onerror=e=>{
+       const errors={
+         "not-allowed":"마이크 권한이 차단됐어요. Chrome 설정 > 사이트 설정 > 마이크에서 허용해 주세요.",
+         "service-not-allowed":"음성인식 서비스가 차단됐어요. HTTPS 웹 주소와 인터넷 연결을 확인해 주세요.",
+         "audio-capture":"마이크를 찾지 못했어요. 다른 앱이 마이크를 사용 중인지 확인해 주세요.",
+         "no-speech":"말소리가 감지되지 않았어요. 마이크를 누른 뒤 바로 말해 주세요.",
+         "network":"음성인식 서버 연결에 실패했어요. 인터넷 연결을 확인한 뒤 다시 시도해 주세요.",
+         "language-not-supported":"선택한 언어의 음성인식을 지원하지 않아요."
+       };
+       const msg=errors[e.error]||`음성인식 오류가 발생했어요: ${e.error}`;
+       say(msg);voiceStatus(msg,true);resetMic();
+     };
+     recognition.onend=()=>resetMic();
+     recognition.start();
+   }catch(e){const msg=`마이크 시작 실패: ${e.name||e.message||"알 수 없는 오류"}`;say("마이크를 시작하지 못했어요. 다시 눌러 주세요.");voiceStatus(msg,true);resetMic();}
+ }
+ // 모바일에서 버튼을 길게 눌렀을 때 복사/선택 메뉴가 뜨는 것을 방지합니다.
+ document.addEventListener("contextmenu",e=>{if(!e.target.closest("input"))e.preventDefault();});
+ document.addEventListener("selectstart",e=>{if(!e.target.closest("input"))e.preventDefault();});
+ document.querySelectorAll(".mode").forEach(btn=>btn.addEventListener("click",()=>{mode=btn.dataset.mode;document.querySelectorAll(".mode").forEach(b=>b.classList.toggle("active",b===btn));}));
+ $("start").addEventListener("click",()=>{running=false;clearInterval(timer);stopListening();$("intro").classList.remove("hidden");});$("introStart").addEventListener("click",startGame);$("again").addEventListener("click",startGame);$("mic").addEventListener("click",startListening);
+ const SRAvailable=!!(window.SpeechRecognition||window.webkitSpeechRecognition);
+ if(location.protocol==="file:")voiceStatus("현재 파일을 휴대폰에서 직접 열었어요. 음성인식이 제한될 수 있어요. HTTPS 웹 주소로 실행해야 안정적으로 테스트할 수 있습니다.",true);
+ else if(!window.isSecureContext)voiceStatus("보안 연결(HTTPS)이 필요합니다.",true);
+ else if(!SRAvailable)voiceStatus("현재 브라우저에 음성인식 기능이 없습니다. Android Chrome 최신 버전을 권장합니다.",true);
+ else voiceStatus("음성인식 준비 완료! 게임을 시작한 뒤 마이크 버튼을 눌러 보세요.");
+ $("testForm").addEventListener("submit",e=>{e.preventDefault();const v=$("typed").value.trim();$("typed").value="";if(v)submit(v);});
+})();
+</script>
+</body>
+</html>
