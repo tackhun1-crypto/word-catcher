@@ -79,6 +79,15 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
 .panel{margin:auto}
 @media(max-width:480px){.top{padding:5px 8px 8px}.brand{font-size:15px}.stats{gap:4px}.stat{min-width:42px;padding:3px 5px}.stat b{font-size:16px}}
 @media(max-height:450px){.target{padding:4px 12px}.target .emoji{font-size:28px}.target .word{font-size:20px}.panel{padding:12px}.panel .big{font-size:28px}}
+.celebration{position:absolute;inset:0;pointer-events:none;z-index:4}
+.celebration[hidden]{display:none}
+.spark,.score-pop,.combo-pop{position:absolute;left:50%;top:var(--celebration-y);white-space:nowrap}
+.spark{font-size:var(--star-size);color:#ffca39;text-shadow:0 1px 2px #885308;animation:scatter .38s ease-out both}
+.score-pop,.combo-pop{padding:2px 10px;border-radius:999px;background:#fff3ae;color:#684700;font-weight:950;animation:score-rise .38s ease-out both}
+.combo-pop{left:calc(50% + 65px);background:#fff;color:#9b3964}
+@keyframes scatter{from{transform:translate(-50%,-50%) scale(.4)}to{transform:translate(calc(-50% + var(--x)),calc(-50% + var(--y))) scale(1.15);opacity:.25}}
+@keyframes score-rise{from{transform:translate(-50%,4px)}to{transform:translate(-50%,-16px)}}
+@media(prefers-reduced-motion:reduce){.spark{display:none}.score-pop,.combo-pop{animation:none;transform:translateX(-50%)}}
 </style>
 </head>
 <body>
@@ -99,6 +108,7 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
         <div class="word" id="word">사과</div>
       </div>
       </div>
+      <div class="celebration" id="celebration" aria-hidden="true" hidden></div>
       <div class="recognized" id="recognizedText" aria-live="polite"></div>
       <div id="targetTrack"></div><div class="ground"></div>
     </section>
@@ -178,7 +188,36 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
    if(mode!=="en" && b.startsWith(a) && b.length-a.length<=2)return true;
    return false;
  }
+ function celebrate(target,gained){
+   const layer=$("celebration");
+   const field=layer.parentElement.getBoundingClientRect();
+   const card=target.getBoundingClientRect();
+   const y=Math.max(20,card.top-field.top+card.height*.35);
+   layer.style.setProperty("--celebration-y",`${y}px`);
+   const milestone=combo===5;
+   const stars=[[-88,12],[-48,-22],[0,-28],[48,-22],[88,12]].map(([x,y])=>{
+     const star=document.createElement("span");
+     star.className="spark";
+     star.textContent="★";
+     star.style.setProperty("--x",`${x}px`);
+     star.style.setProperty("--y",`${y}px`);
+     star.style.setProperty("--star-size",milestone?"28px":"19px");
+     return star;
+   });
+   const points=document.createElement("span");
+   points.className="score-pop";
+   points.textContent=`+${gained}`;
+   layer.replaceChildren(...stars,points);
+   if(milestone){
+     const badge=document.createElement("span");
+     badge.className="combo-pop";
+     badge.textContent="5개 연속!";
+     layer.append(badge);
+   }
+   layer.hidden=false;
+ }
  function cancelTransition(){
+   $("celebration").hidden=true;
    if(transition)transition.cancel();
    $("target").style.animationPlayState="";
    transition=null;
@@ -198,8 +237,12 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
    voiceStatus(`${spoken} · 정답! +${gained}점`);
    const target=$("target");
    target.style.animationPlayState="paused";
-   transition=target.animate([{scale:1,opacity:1},{scale:1.35,opacity:.3},{scale:.2,opacity:0}],{duration:380,easing:"ease-out"});
+   celebrate(target,gained);
+   const reducedMotion=matchMedia("(prefers-reduced-motion: reduce)").matches;
+   const frames=reducedMotion?[{opacity:1},{opacity:1}]:[{scale:1,opacity:1},{scale:1.2,opacity:1},{scale:.3,opacity:0}];
+   transition=target.animate(frames,{duration:380,easing:"ease-out"});
    transition.onfinish=()=>{
+     $("celebration").hidden=true;
      transition=null;
      target.style.animationPlayState="";
      if(running)choose();
