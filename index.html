@@ -88,6 +88,9 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
 @keyframes scatter{from{transform:translate(-50%,-50%) scale(.4)}to{transform:translate(calc(-50% + var(--x)),calc(-50% + var(--y))) scale(1.15);opacity:.25}}
 @keyframes score-rise{from{transform:translate(-50%,4px)}to{transform:translate(-50%,-16px)}}
 @media(prefers-reduced-motion:reduce){.spark{display:none}.score-pop,.combo-pop{animation:none;transform:translateX(-50%)}}
+.record-list{text-align:left;font-size:14px;max-height:7em;overflow:auto;margin:8px 0}
+#records summary{cursor:pointer;font-weight:800;color:var(--ink)}
+#recordBest,#resultBest{margin:6px 0;font-size:14px}
 </style>
 </head>
 <body>
@@ -127,6 +130,7 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
       <button class="mode" data-mode="en">ABC 영어</button>
       <button class="mode" data-mode="animal">동물 친구</button>
     </div>
+      <details id="records"><summary>기록 보기</summary><p id="recordBest"></p><ol id="recordList" class="record-list"></ol></details>
       <button id="introStart">선택한 모드로 시작!</button>
     </div>
   </div>
@@ -134,6 +138,7 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
     <div class="panel">
       <div class="big">🏆</div><h2>참 잘했어요!</h2>
       <p id="resultText">멋진 도전이었어요!</p>
+      <p id="resultBest"></p>
       <button id="again">한 번 더!</button>
     </div>
   </div>
@@ -174,16 +179,49 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
    choose();
    timer=setInterval(()=>{time--;update();if(time<=0)endGame();},1000);
  }
+ const recordKey="word-catcher-records-v1";
+ const dateFormat=new Intl.DateTimeFormat("ko-KR",{dateStyle:"short",timeStyle:"short"});
+ let records={};
+ try{
+   const saved=JSON.parse(localStorage.getItem(recordKey));
+   if(saved&&typeof saved==="object")records=saved;
+ }catch{}
+ function renderRecords(){
+   const record=records[mode];
+   $("recordBest").textContent=record?`최고 점수 ${record.best}점`:"이 모드의 첫 기록에 도전해 보세요!";
+   const entries=(record?.recent||[]).map(entry=>{
+     const item=document.createElement("li");
+     item.textContent=`${entry.score}점 · ${entry.combo}콤보 · ${dateFormat.format(entry.at)}`;
+     return item;
+   });
+   $("recordList").replaceChildren(...entries);
+ }
+ function saveRecord(){
+   const previous=records[mode];
+   const newBest=!previous||score>previous.best;
+   const best=Math.max(previous?.best??0,score);
+   const recent=[{score,combo:bestCombo,at:Date.now()},...(previous?.recent||[])].slice(0,5);
+   records[mode]={best,recent};
+   const summary=newBest?`최고 기록! ${best}점`:`최고 점수 ${best}점`;
+   try{
+     localStorage.setItem(recordKey,JSON.stringify(records));
+     $("resultBest").textContent=summary;
+   }catch{
+     $("resultBest").textContent=`${summary} · 현재 탭에서만 보관돼요`;
+   }
+   renderRecords();
+ }
  function endGame(){
    running=false;
    clearInterval(timer);
    stopListening();
    cancelTransition();
    $("resultText").textContent=`최종 점수 ${score}점 · 최고 콤보 ${bestCombo}회! 정말 멋졌어요!`;
+   saveRecord();
    $("result").classList.remove("hidden");
  }
  function normalize(s){return (s||"").toLocaleLowerCase().replace(/[\s.,!?~'’"]/g,"").replace(/(요|이에요|예요|입니다)$/,"");}
- function isCorrect(spoken){const answer=bank[mode][current][0];const a=normalize(answer),b=normalize(spoken);if(a===b)return true;
+ function isCorrect(spoken){const answer=bank[mode][current][0];const a=normalize(answer),b=normalize(spoken);if(a===b||(a==="별"&&b==="*"))return true;
    // 음성인식에서 붙는 짧은 종결어미/군더더기를 일부 허용하되, 다른 단어를 무조건 정답 처리하지 않음
    if(mode!=="en" && b.startsWith(a) && b.length-a.length<=2)return true;
    return false;
@@ -266,7 +304,8 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
    const gained=100+(combo>=10?100:combo>=5?50:0);
    score+=gained;
    update();
-   voiceStatus(`${spoken} · 정답! +${gained}점`);
+   const recognized=normalize(spoken)==="*"?"별":spoken;
+   voiceStatus(`${recognized} · 정답! +${gained}점`);
    const target=$("target");
    target.style.animationPlayState="paused";
    celebrate(target,gained);
@@ -388,8 +427,9 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
  // 모바일에서 버튼을 길게 눌렀을 때 복사/선택 메뉴가 뜨는 것을 방지합니다.
  document.addEventListener("contextmenu",e=>{if(!e.target.closest("input"))e.preventDefault();});
  document.addEventListener("selectstart",e=>{if(!e.target.closest("input"))e.preventDefault();});
- document.querySelectorAll(".mode").forEach(btn=>btn.addEventListener("click",()=>{mode=btn.dataset.mode;document.querySelectorAll(".mode").forEach(b=>b.classList.toggle("active",b===btn));}));
+ document.querySelectorAll(".mode").forEach(btn=>btn.addEventListener("click",()=>{mode=btn.dataset.mode;renderRecords();document.querySelectorAll(".mode").forEach(b=>b.classList.toggle("active",b===btn));}));
  $("start").addEventListener("click",()=>{running=false;clearInterval(timer);stopListening();cancelTransition();$("intro").classList.remove("hidden");});$("introStart").addEventListener("click",startGame);$("again").addEventListener("click",startGame);$("mic").addEventListener("click",toggleMic);
+ renderRecords();
 })();
 </script>
 </body>
