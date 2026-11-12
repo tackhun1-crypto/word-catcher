@@ -35,7 +35,8 @@ h1{font-size:clamp(24px,4vw,38px);margin:6px 0 2px;text-align:center;color:#fff;
 .target .emoji{font-size:clamp(45px,8vw,68px);line-height:1.1;display:block}
 .target .word{font-size:clamp(25px,5vw,38px);font-weight:1000;color:#345d79;white-space:nowrap}
 .target .hint{font-size:12px;font-weight:800;color:#91a8b7;margin-top:3px}
-@keyframes float{0%,100%{margin-top:0}50%{margin-top:9px}}\n@keyframes fall{from{top:7%}to{top:calc(100% - 155px)}}
+@keyframes float{0%,100%{margin-top:0}50%{margin-top:9px}}
+@keyframes fall{from{top:7%}to{top:calc(100% - 155px)}}
 #targetTrack{position:absolute;bottom:14px;left:8%;right:8%;height:9px;border-radius:99px;background:#ffffff8a}
 #targetTrack:after{content:"";display:block;width:100%;height:100%;border-radius:99px;background:#75d9a8}
 .ground{position:absolute;bottom:-34px;left:-5%;width:110%;height:62px;background:linear-gradient(180deg,#a8edb1,#71d596);border-radius:50% 50% 0 0;box-shadow:0 -5px 0 #d7ffd8aa}
@@ -56,6 +57,11 @@ h1{font-size:clamp(24px,4vw,38px);margin:6px 0 2px;text-align:center;color:#fff;
 .panel .big{font-size:56px}.panel .modes{margin:18px 0 12px}.panel p{margin-bottom:10px}.panel button{margin-top:8px;background:#ff91ae;color:white;border-radius:18px;padding:13px 28px;font-size:18px;font-weight:1000;box-shadow:0 5px 0 #d86c8d}
 .hidden{display:none!important}
 @media(max-height:650px){.mascots{height:62px;margin-bottom:0}.buddy{width:62px}.top{padding-top:7px;padding-bottom:4px}h1{margin-top:0}.sub{margin-bottom:5px}.modes{margin:2px 0 7px}.playfield{height:42vh;min-height:210px}.controls{margin:10px 0 4px}.note{margin-top:3px}}
+
+.recognized{position:absolute;left:50%;bottom:14%;transform:translateX(-50%);width:min(80%,450px);min-height:52px;display:flex;align-items:center;justify-content:center;padding:10px 16px;border-radius:22px;background:#ffffffc9;border:2px solid #fff;box-shadow:0 5px 0 #78c8d744;color:#315f78;font-size:clamp(19px,3.7vw,29px);font-weight:900;text-align:center;z-index:3;pointer-events:none}
+.recognized:empty{display:none}
+.recognized.error{color:#ad4964;font-size:clamp(14px,2.4vw,19px)}
+@media(max-height:650px){.recognized{bottom:12%;min-height:40px;padding:6px 10px}}
 </style>
 </head>
 <body>
@@ -74,21 +80,14 @@ h1{font-size:clamp(24px,4vw,38px);margin:6px 0 2px;text-align:center;color:#fff;
       <div class="target" id="target">
         <span class="emoji" id="emoji">🍎</span>
         <div class="word" id="word">사과</div>
-        <div class="hint" id="hint">정답을 말해 보세요!</div>
       </div>
+      <div class="recognized" id="recognizedText" aria-live="polite"></div>
       <div id="targetTrack"></div><div class="ground"></div>
     </section>
     <div class="controls">
       <button class="mic" id="mic">🎤 말해서 정답 맞히기</button>
       <button class="secondary" id="start">모드 변경</button>
     </div>
-    <div class="feedback" id="feedback" aria-live="polite">게임 시작을 누르면 출발해요!</div>
-    <div class="note" id="voiceStatus" role="status" aria-live="polite">음성인식 상태를 확인하고 있어요.</div>
-    <form class="testrow" id="testForm">
-      <input id="typed" autocomplete="off" placeholder="음성인식이 안 되면 여기에 입력" aria-label="정답 직접 입력">
-      <button type="submit">확인</button>
-    </form>
-    <p class="note">마이크 버튼을 누르고 브라우저의 마이크 사용을 허용해 주세요. 직접 입력은 테스트용이에요.</p>
   </main>
   <div class="overlay" id="intro">
     <div class="panel">
@@ -120,9 +119,9 @@ h1{font-size:clamp(24px,4vw,38px);margin:6px 0 2px;text-align:center;color:#fff;
  };
  const $=id=>document.getElementById(id);
  let mode="ko", score=0, combo=0, time=60, running=false, timer=null, current=null, recognition=null, listening=false, used=[];
- function choose(){let list=bank[mode], pool=list.map((_,i)=>i).filter(i=>i!==current);if(!pool.length)pool=list.map((_,i)=>i);current=pool[Math.floor(Math.random()*pool.length)];used.push(current);const [w,e]=list[current];$("word").textContent=w;$("emoji").textContent=e;$("hint").textContent=mode==="en"?"영어로 말해 보세요!":"정답을 말해 보세요!";const t=$("target");t.style.animation="none";t.style.opacity=1;void t.offsetWidth;t.style.animation="fall 8s linear forwards";}
+ function choose(){$("recognizedText").textContent="";$("recognizedText").classList.remove("error");let list=bank[mode], pool=list.map((_,i)=>i).filter(i=>i!==current);if(!pool.length)pool=list.map((_,i)=>i);current=pool[Math.floor(Math.random()*pool.length)];used.push(current);const [w,e]=list[current];$("word").textContent=w;$("emoji").textContent=e;const t=$("target");t.style.animation="none";t.style.opacity=1;void t.offsetWidth;t.style.animation="fall 8s linear forwards";}
  function update(){$("score").textContent=score;$("combo").textContent=combo;$("time").textContent=time;}
- function say(text){$("feedback").textContent=text;}
+ function say(text){/* 게임 중 하단 진단 문구는 표시하지 않음 */}
  function startGame(){clearInterval(timer);stopListening();score=0;combo=0;time=60;running=true;update();$("intro").classList.add("hidden");$("result").classList.add("hidden");$("start").textContent="모드 변경";choose();say("좋아요! 첫 번째 단어를 맞혀 보세요!");timer=setInterval(()=>{if(!running)return;time--;update();if(time<=0)endGame();},1000);}
  function endGame(){running=false;clearInterval(timer);stopListening();$("resultText").textContent=`최종 점수 ${score}점 · 최고 콤보 ${combo}회! 정말 멋졌어요!`;$("result").classList.remove("hidden");}
  function normalize(s){return (s||"").toLocaleLowerCase().replace(/[\s.,!?~'’"]/g,"").replace(/(요|이에요|예요|입니다)$/,"");}
@@ -132,14 +131,14 @@ h1{font-size:clamp(24px,4vw,38px);margin:6px 0 2px;text-align:center;color:#fff;
    return false;
  }
  function submit(spoken){if(!running||!spoken)return;if(isCorrect(spoken)){combo++;let gained=100+(combo>=10?100:combo>=5?50:0);score+=gained;update();say(combo>=10?`🔥 ${combo}콤보! 최고예요! +${gained}점`:combo>=5?`⭐ ${combo}콤보! 멋져요! +${gained}점`:`정답이에요! +${gained}점`);$("target").animate([{transform:"translateX(-50%) scale(1)",opacity:1},{transform:"translateX(-50%) scale(1.35) rotate(8deg)",opacity:.3},{transform:"translateX(-50%) scale(.2)",opacity:0}],{duration:380,easing:"ease-out"}).onfinish=()=>{if(running){$("target").style.opacity=1;choose();}};stopListening();}
-   else{combo=0;update();say("괜찮아요! 다시 한 번 말해 볼까요?");}
+   else{combo=0;update();$("recognizedText").textContent=`${spoken} · 다시 말해 볼까요?`; }
  }
  $("target").addEventListener("animationend",e=>{if(e.animationName==="fall"&&running){combo=0;update();say("앗, 단어가 내려왔어요! 다음 단어에 도전!");choose();}});
- function voiceStatus(message,isError=false){const el=$("voiceStatus");el.textContent=message;el.classList.toggle("error",isError);}
- function resetMic(){listening=false;$ ("mic").classList.remove("listening");$("mic").textContent="🎤 말해서 정답 맞히기";}
- function stopListening(){if(recognition){try{recognition.abort()}catch(e){}}resetMic();}
+ function voiceStatus(message,isError=false){if(!isError)return;const el=$("recognizedText");el.textContent=message;el.classList.add("error");}
+ function resetMic(){listening=false;$("mic").classList.remove("listening");$("mic").textContent="🎤 말해서 정답 맞히기";}
+ function stopListening(){const old=recognition;recognition=null;if(old){try{old.abort()}catch(e){}}resetMic();}
  function startListening(){
-   if(!running){say("먼저 게임을 시작해 주세요!");return;}
+   if(!running)return;
    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
    if(!SR){const msg="이 브라우저는 음성인식을 지원하지 않아요. Android Chrome 최신 버전을 사용해 주세요.";say(msg);voiceStatus(msg,true);return;}
    if(listening){stopListening();return;}
@@ -149,10 +148,11 @@ h1{font-size:clamp(24px,4vw,38px);margin:6px 0 2px;text-align:center;color:#fff;
      recognition.interimResults=true;
      recognition.continuous=false;
      recognition.maxAlternatives=5;
+     const session=recognition;
      let submitted=false;
-     recognition.onstart=()=>{listening=true;$("mic").classList.add("listening");$("mic").textContent="🔴 듣고 있어요...";say(mode==="en"?"영어 단어를 말해 보세요!":"단어를 말해 보세요!");voiceStatus(`마이크가 켜졌어요. ${recognition.lang}로 듣고 있습니다.`);};
-     recognition.onaudiostart=()=>voiceStatus("마이크 입력을 받고 있어요. 화면 가까이에서 말해 주세요.");
-     recognition.onspeechstart=()=>voiceStatus("말소리를 감지했어요. 단어를 확인하고 있어요.");
+     recognition.onstart=()=>{listening=true;$("recognizedText").textContent="듣고 있어요...";$("recognizedText").classList.remove("error");$("mic").classList.add("listening");$("mic").textContent="🔴 듣고 있어요...";say(mode==="en"?"영어 단어를 말해 보세요!":"단어를 말해 보세요!");voiceStatus(`마이크가 켜졌어요. ${recognition.lang}로 듣고 있습니다.`);};
+     recognition.onaudiostart=()=>{$("recognizedText").textContent="듣고 있어요...";$("recognizedText").classList.remove("error");};
+     recognition.onspeechstart=()=>{$("recognizedText").textContent="말소리를 인식하고 있어요...";};
      recognition.onresult=e=>{
        let interim="";
        for(let i=e.resultIndex;i<e.results.length;i++){
@@ -161,13 +161,14 @@ h1{font-size:clamp(24px,4vw,38px);margin:6px 0 2px;text-align:center;color:#fff;
            submitted=true;
            const choices=Array.from(r).map(x=>x.transcript.trim()).filter(Boolean);
            const answer=choices.find(x=>isCorrect(x))||choices[0]||"";
-           if(answer){voiceStatus(`인식 결과: “${answer}”`);submit(answer);}
+           if(answer){$("recognizedText").textContent=answer;$("recognizedText").classList.remove("error");submit(answer);}
          }else if(!r.isFinal){interim+=r[0].transcript;}
        }
-       if(interim)voiceStatus(`듣는 중: “${interim}”`);
+       if(interim&&!submitted){$("recognizedText").textContent=interim;$("recognizedText").classList.remove("error");}
      };
      recognition.onnomatch=()=>{say("잘 알아듣지 못했어요. 천천히 한 번 더 말해 주세요.");voiceStatus("소리는 들렸지만 단어를 구분하지 못했어요.",true);};
      recognition.onerror=e=>{
+       if(e.error==="aborted"||recognition!==session)return;
        const errors={
          "not-allowed":"마이크 권한이 차단됐어요. Chrome 설정 > 사이트 설정 > 마이크에서 허용해 주세요.",
          "service-not-allowed":"음성인식 서비스가 차단됐어요. HTTPS 웹 주소와 인터넷 연결을 확인해 주세요.",
@@ -179,7 +180,7 @@ h1{font-size:clamp(24px,4vw,38px);margin:6px 0 2px;text-align:center;color:#fff;
        const msg=errors[e.error]||`음성인식 오류가 발생했어요: ${e.error}`;
        say(msg);voiceStatus(msg,true);resetMic();
      };
-     recognition.onend=()=>resetMic();
+     recognition.onend=()=>{if(recognition===session)resetMic();};
      recognition.start();
    }catch(e){const msg=`마이크 시작 실패: ${e.name||e.message||"알 수 없는 오류"}`;say("마이크를 시작하지 못했어요. 다시 눌러 주세요.");voiceStatus(msg,true);resetMic();}
  }
@@ -188,12 +189,6 @@ h1{font-size:clamp(24px,4vw,38px);margin:6px 0 2px;text-align:center;color:#fff;
  document.addEventListener("selectstart",e=>{if(!e.target.closest("input"))e.preventDefault();});
  document.querySelectorAll(".mode").forEach(btn=>btn.addEventListener("click",()=>{mode=btn.dataset.mode;document.querySelectorAll(".mode").forEach(b=>b.classList.toggle("active",b===btn));}));
  $("start").addEventListener("click",()=>{running=false;clearInterval(timer);stopListening();$("intro").classList.remove("hidden");});$("introStart").addEventListener("click",startGame);$("again").addEventListener("click",startGame);$("mic").addEventListener("click",startListening);
- const SRAvailable=!!(window.SpeechRecognition||window.webkitSpeechRecognition);
- if(location.protocol==="file:")voiceStatus("현재 파일을 휴대폰에서 직접 열었어요. 음성인식이 제한될 수 있어요. HTTPS 웹 주소로 실행해야 안정적으로 테스트할 수 있습니다.",true);
- else if(!window.isSecureContext)voiceStatus("보안 연결(HTTPS)이 필요합니다.",true);
- else if(!SRAvailable)voiceStatus("현재 브라우저에 음성인식 기능이 없습니다. Android Chrome 최신 버전을 권장합니다.",true);
- else voiceStatus("음성인식 준비 완료! 게임을 시작한 뒤 마이크 버튼을 눌러 보세요.");
- $("testForm").addEventListener("submit",e=>{e.preventDefault();const v=$("typed").value.trim();$("typed").value="";if(v)submit(v);});
 })();
 </script>
 </body>
