@@ -68,9 +68,9 @@ h1{font-size:clamp(24px,4vw,38px);margin:6px 0 2px;text-align:center;color:#fff;
 main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
 .playfield{width:min(100%,690px);height:auto;min-height:0;flex:1;--transcript-space:68px}
 .target{top:0;left:0;transform:none;animation:none}
-.lane{position:absolute;inset:8px 0 var(--transcript-space);display:grid;justify-items:center;overflow:hidden;container-type:size}
-.target{position:relative;align-self:start;max-width:90%}
-@keyframes fall{from{top:0}to{top:max(0px,calc(100cqh - 100% - 10px))}}
+.lane{position:absolute;inset:8px 0 var(--transcript-space);z-index:1}
+.target{position:absolute;left:50%;transform:translateX(-50%);max-width:92%}
+@keyframes fall{from{top:0;translate:0 0}to{top:calc(100% - 9px);translate:0 -100%}}
 .recognized{bottom:10px;width:calc(100% - 20px);min-height:44px;max-height:56px;overflow:auto;overflow-wrap:anywhere;display:block;padding:6px 10px;align-content:center}
 .controls{margin:10px 0 4px;gap:6px}
 .mic,.secondary{min-height:44px;padding:7px 12px;font-size:15px}
@@ -98,6 +98,12 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
 #introStart{width:100%;margin:0}
 #intro #records{margin-top:14px}
 #emoji:empty{display:none}
+.target .emoji{font-size:clamp(58px,19vw,100px)}
+.target .word{font-size:clamp(32px,10vw,54px);line-height:1.12;white-space:normal;overflow-wrap:anywhere}
+.ground{height:calc(var(--transcript-space) + 34px)}
+.shard{position:absolute;left:50%;top:var(--celebration-y);width:18px;height:13px;background:#ffeab1;border:2px solid #fff;clip-path:polygon(10% 10%,95% 0,72% 100%,0 75%);animation:scatter .28s ease-out both}
+@media(max-height:450px){.target .emoji{font-size:36px}.target .word{font-size:26px}}
+@media(prefers-reduced-motion:reduce){.shard{animation:none;display:none}}
 </style>
 </head>
 <body>
@@ -350,7 +356,27 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
    if(event.animationName!=="fall"||!running||transition)return;
    combo=0;
    update();
-   choose();
+   const target=event.currentTarget;
+   const layer=$("celebration");
+   const impactY=target.getBoundingClientRect().bottom-layer.parentElement.getBoundingClientRect().top;
+   layer.style.setProperty("--celebration-y",`${impactY}px`);
+   const fragments=[[-92,-14],[-60,-44],[-28,-24],[18,-42],[52,-20],[86,-36]].map(([x,y])=>{
+     const shard=document.createElement("span");
+     shard.className="shard";
+     shard.style.setProperty("--x",`${x}px`);
+     shard.style.setProperty("--y",`${y}px`);
+     return shard;
+   });
+   layer.replaceChildren(...fragments);
+   layer.hidden=false;
+   const reducedMotion=matchMedia("(prefers-reduced-motion: reduce)").matches;
+   transition=target.animate([{opacity:1},{opacity:0}],{duration:reducedMotion?0:280,fill:"forwards"});
+   transition.onfinish=()=>{
+     transition.cancel();
+     transition=null;
+     layer.hidden=true;
+     if(running)choose();
+   };
  });
  function voiceStatus(message,isError=false){
    const text=$("recognizedText");
