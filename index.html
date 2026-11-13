@@ -174,6 +174,7 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
     <div class="panel">
       <div class="big">🏆</div><h2 id="resultTitle">참 잘했어요!</h2>
       <p id="resultText">멋진 도전이었어요!</p>
+      <p id="bossResult"></p>
       <p id="resultBest"></p>
       <button id="again">한 번 더!</button>
     </div>
@@ -276,16 +277,17 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
    $("recordBest").textContent=record?`최고 점수 ${record.best}점`:"이 모드의 첫 기록에 도전해 보세요!";
    const entries=(record?.recent||[]).map(entry=>{
      const item=document.createElement("li");
-     item.textContent=`${entry.score}점 · ${entry.combo}콤보 · ${dateFormat.format(entry.at)}`;
+     const bossResult=entry.bossWon===true?" · 보스 클리어":entry.bossWon===false?" · 보스 미완료":"";
+     item.textContent=`${entry.score}점 · ${entry.combo}콤보${bossResult} · ${dateFormat.format(entry.at)}`;
      return item;
    });
    $("recordList").replaceChildren(...entries);
  }
- function saveRecord(){
+ function saveRecord(bossWon){
    const previous=records[mode];
    const newBest=!previous||score>previous.best;
    const best=Math.max(previous?.best??0,score);
-   const recent=[{score,combo:bestCombo,at:Date.now()},...(previous?.recent||[])].slice(0,5);
+   const recent=[{score,combo:bestCombo,at:Date.now(),bossWon},...(previous?.recent||[])].slice(0,5);
    records[mode]={best,recent};
    const summary=newBest?`최고 기록! ${best}점`:`최고 점수 ${best}점`;
    try{
@@ -304,7 +306,8 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
    const bossWon=bossHealth===0;
    $("resultTitle").textContent=bossWon?"보스 클리어!":"참 잘했어요!";
    $("resultText").textContent=`최종 점수 ${score}점 · 최고 콤보 ${bestCombo}회!${bossWon?" · 보스 보너스 +500점!":""}`;
-   saveRecord();
+   $("bossResult").textContent=bossWon?"하트 5개를 모두 줄였어요!":`보스전에서 ${bossMaxHealth-bossHealth}/5문제를 맞혔어요.`;
+   saveRecord(bossWon);
    $("result").classList.remove("hidden");
  }
  function normalize(s){return (s||"").toLocaleLowerCase().replace(/[\s.,!?~'’"]/g,"").replace(/(요|이에요|예요|입니다)$/,"");}
@@ -487,6 +490,7 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
      session.interimResults=true;
      session.continuous=false;
      session.maxAlternatives=5;
+     const sessionRound=round;
      let spokenRound=null;
      let submitted=false;
      session.onstart=()=>{
@@ -506,7 +510,7 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
      };
      session.onresult=event=>{
        if(recognition!==session||submitted||transition)return;
-       spokenRound??=round;
+       spokenRound??=sessionRound;
        if(spokenRound!==round)return;
        for(let i=event.resultIndex;i<event.results.length;i++){
          const result=event.results[i];
@@ -522,7 +526,9 @@ main{width:100%;margin:0 auto;padding:0 8px 10px;flex:1;min-height:0}
        }
      };
      session.onnomatch=()=>{
-       if(recognition===session)voiceStatus("잘 알아듣지 못했어요. 다시 말해 볼까요?");
+       if(recognition!==session||transition||(spokenRound??sessionRound)!==round)return;
+       releaseSpeechHold();
+       voiceStatus("잘 알아듣지 못했어요. 다시 말해 볼까요?");
      };
      session.onerror=event=>{
        if(recognition!==session||event.error==="no-speech")return;
